@@ -20,7 +20,7 @@ import (
 	"testing"
 	"time"
 
-	"go.sustainyfacts.org/anycache/cache"
+	"gitlab.com/sustainyfacts/anycache/cache"
 )
 
 var (
