@@ -3,8 +3,8 @@ package examples
 import (
 	"fmt"
 
-	"go.sustainyfacts.org/anycache/adapters/store_ristretto"
-	"go.sustainyfacts.org/anycache/cache"
+	"gitlab.com/sustainyfacts/anycache/adapters/store_ristretto"
+	"gitlab.com/sustainyfacts/anycache/cache"
 )
 
 func TestRistretto() {

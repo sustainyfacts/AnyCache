@@ -20,7 +20,7 @@ import (
 
 	"github.com/dgraph-io/ristretto"
 	"github.com/dgraph-io/ristretto/z"
-	"go.sustainyfacts.org/anycache/cache"
+	"gitlab.com/sustainyfacts/anycache/cache"
 )
 
 func NewStore() cache.Store {

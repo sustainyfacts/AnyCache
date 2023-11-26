@@ -16,7 +16,7 @@ limitations under the License.
 package cache
 
 import (
-	"go.sustainyfacts.org/anycache/cache/singleflight"
+	"gitlab.com/sustainyfacts/anycache/cache/singleflight"
 )
 
 type Factory[K int64 | string | uint64, V any] struct {
