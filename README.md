@@ -12,7 +12,7 @@ Requires Go 1.21 or newer.
 
 ## Features
 
-* ✅ Rype-safe, loadable cache: you defined a cacheLoader function to load your data
+* ✅ Type-safe, loadable cache: you defined a cacheLoader function to load your data
 * ✅ Cache groups: several groups using a single underlying store
 * ✅ Configurable cache stores: in-memory, redis, or your own custom store
 * ✅ (TODO) Second level cache: use a primary memory store with a fallback to a redis shared cache for instance 
