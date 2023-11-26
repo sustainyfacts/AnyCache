@@ -12,14 +12,14 @@ Requires Go 1.21 or newer.
 
 ## Features
 
-* ✅ Type-safe, loadable cache: you defined a cacheLoader function to load your data
-* ✅ Cache groups: several groups using a single underlying store
-* ✅ Configurable cache stores: in-memory, redis, or your own custom store
-* ✅ (TODO) Second level cache: use a primary memory store with a fallback to a redis shared cache for instance 
-* ✅ (TODO) A marshaler to automatically marshal/unmarshal your cache values as a struct 
-* ✅ (TODO) Cache invalidation by expiration time
-* ✅ Use of Generics
-* ✅ Distributed invalidation: inject a message broker to enable distributed invalidation of the in-memory caches in your cluster
+* ✅ __No external dependencies__: besides the store implementation of your choice, there are no depencies to 3rd party libraries
+* ✅ __Type-safe, loadable cache__: you defined a cacheLoader function to load your data. Because AnyCache is using generics, you can use your actual types instead of `any`
+* ✅ __Cache groups__: several groups using a single underlying store for optimal performance and memory usage
+* ✅ __Configurable cache stores__: in-memory, redis, or your own custom store
+* 🚧 Second level cache: use a primary memory store with a fallback to a redis shared cache for instance 
+* 🚧 A marshaler to automatically marshal/unmarshal your cache values as a struct 
+* 🚧 Cache invalidation by expiration time
+* ✅ __Distributed invalidation__: inject a message broker to enable distributed invalidation of the in-memory caches in your cluster
 
 
 ## Built-in adapters
