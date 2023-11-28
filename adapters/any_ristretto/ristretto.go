@@ -20,7 +20,7 @@ import (
 
 	"github.com/dgraph-io/ristretto"
 	"github.com/dgraph-io/ristretto/z"
-	"gitlab.com/sustainyfacts/anycache/cache"
+	"sustainyfacts.dev/anycache/cache"
 )
 
 func NewAdapter() cache.Store {

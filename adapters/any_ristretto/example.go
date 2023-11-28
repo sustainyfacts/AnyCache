@@ -18,7 +18,7 @@ package any_ristretto
 import (
 	"fmt"
 
-	"gitlab.com/sustainyfacts/anycache/cache"
+	"sustainyfacts.dev/anycache/cache"
 )
 
 func TestRistretto() {

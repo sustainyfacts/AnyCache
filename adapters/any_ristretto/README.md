@@ -8,8 +8,8 @@ This is the ristretto adapter for AnyCache.
 import (
 	"fmt"
 
-	"go.sustainyfacts.org/anycache/adapters/any_ristretto"
-	"go.sustainyfacts.org/anycache/cache"
+	"sustainyfacts.dev/anycache/adapters/any_ristretto"
+	"sustainyfacts.dev/anycache/cache"
 )
 
 func TestRistretto() {

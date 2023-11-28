@@ -19,7 +19,7 @@ import (
 	"regexp"
 	"time"
 
-	"gitlab.com/sustainyfacts/anycache/cache/singleflight"
+	"sustainyfacts.dev/anycache/cache/singleflight"
 )
 
 var (

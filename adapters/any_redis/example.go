@@ -3,7 +3,7 @@ package any_redis
 import (
 	"fmt"
 
-	"gitlab.com/sustainyfacts/anycache/cache"
+	"sustainyfacts.dev/anycache/cache"
 )
 
 func TestRistretto() {

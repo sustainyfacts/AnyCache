@@ -1,4 +1,4 @@
-module gitlab.com/sustainyfacts/anycache/adapters/any_redis
+module sustainyfacts.dev/anycache/adapters/any_redis
 
 go 1.21
 

@@ -34,7 +34,7 @@ Requires Go 1.21 or newer.
 import (
 	"fmt"
 
-	"go.sustainyfacts.org/anycache/cache"
+	"sustainyfacts.dev/anycache/cache"
 )
 
 func SimpleExample() {

@@ -8,8 +8,8 @@ This is the Redis adapter for AnyCache.
 import (
 	"fmt"
 
-	"go.sustainyfacts.org/anycache/adapters/any_redis"
-	"go.sustainyfacts.org/anycache/cache"
+	"sustainyfacts.dev/anycache/adapters/any_redis"
+	"sustainyfacts.dev/anycache/cache"
 )
 
 func TestRedis() {

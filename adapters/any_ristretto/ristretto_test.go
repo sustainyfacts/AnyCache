@@ -20,7 +20,7 @@ import (
 	"testing"
 	"time"
 
-	"gitlab.com/sustainyfacts/anycache/cache"
+	"sustainyfacts.dev/anycache/cache"
 )
 
 var (

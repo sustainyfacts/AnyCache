@@ -1,4 +1,4 @@
-module gitlab.com/sustainyfacts/anycache/adapters/any_ristretto
+module sustainyfacts.dev/anycache/adapters/any_ristretto
 
 go 1.21
 

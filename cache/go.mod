@@ -1,3 +1,3 @@
-module gitlab.com/sustainyfacts/anycache/cache
+module sustainyfacts.dev/anycache/cache
 
 go 1.21

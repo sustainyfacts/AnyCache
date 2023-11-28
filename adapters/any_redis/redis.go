@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/redis/go-redis/v9"
-	"gitlab.com/sustainyfacts/anycache/cache"
+	"sustainyfacts.dev/anycache/cache"
 )
 
 var ctx = context.Background()
