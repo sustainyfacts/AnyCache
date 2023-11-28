@@ -1,16 +1,15 @@
-package examples
+package any_redis
 
 import (
 	"fmt"
 
-	"gitlab.com/sustainyfacts/anycache/adapters/store_ristretto"
 	"gitlab.com/sustainyfacts/anycache/cache"
 )
 
 func TestRistretto() {
-	cache.SetDefaultStore(store_ristretto.NewStore())
+	cache.SetDefaultStore(NewAdapter("localhost:6379", ""))
 
-	group := cache.NewFactory("TestRistretto",
+	group := cache.NewFactory("TestRedis",
 		func(key string) (string, error) {
 			return "value for " + key, nil
 		}).Cache()

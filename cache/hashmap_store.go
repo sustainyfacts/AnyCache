@@ -29,9 +29,9 @@ type store struct {
 
 func (s *store) ConfigureGroup(name string, config GroupConfig) {
 	if config.Ttl != 0 {
-		panic("stores does not support TTL")
+		panic("hashmap store does not support TTL")
 	} else if config.Cost != 0 {
-		panic("stores does not support Cost")
+		panic("hashmap store does not support Cost")
 	}
 	s.stores[name] = &sync.Map{}
 }

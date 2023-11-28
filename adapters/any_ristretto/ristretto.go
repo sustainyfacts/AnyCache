@@ -13,7 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-package store_ristretto
+package any_ristretto
 
 import (
 	"math/rand"
@@ -23,7 +23,7 @@ import (
 	"gitlab.com/sustainyfacts/anycache/cache"
 )
 
-func NewStore() cache.Store {
+func NewAdapter() cache.Store {
 	r, _ := ristretto.NewCache(&ristretto.Config{
 		NumCounters: 1e7,       // number of keys to track frequency of (10M).
 		MaxCost:     1 << 30,   // maximum cost of cache (1GB).

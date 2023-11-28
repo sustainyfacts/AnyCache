@@ -13,27 +13,36 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-package cache
+package any_ristretto
 
 import (
 	"fmt"
 	"testing"
 	"time"
+
+	"gitlab.com/sustainyfacts/anycache/cache"
 )
 
+var (
+	ristrettoStore = NewAdapter()
+)
+
+func init() {
+	cache.SetDefaultStore(ristrettoStore)
+}
+
 func TestCacheLoader(t *testing.T) {
+
 	loader := func(key string) (string, error) {
 		return "value for " + key, nil
 	}
 
-	group := NewFactory("TestCacheLoader", loader).Cache()
+	group := cache.NewFactory("TestCacheLoader", loader).Cache()
 
 	v1, _ := group.Get("key1")
 	if v1 != "value for key1" {
 		t.Errorf("value for key1 should be 'value for 1', but got %v", v1)
 	}
-
-	//cache.Wait() // Wait until it is in cache and get another key
 
 	v2, _ := group.Get("key2")
 	if v2 != "value for key2" {
@@ -49,7 +58,7 @@ func TestCacheLoaderNotFound(t *testing.T) {
 		return fmt.Sprintf("value for %d", key), nil
 	}
 
-	group := NewFactory("TestCacheLoaderNotFound", loader).Cache()
+	group := cache.NewFactory("TestCacheLoaderNotFound", loader).Cache()
 
 	v1, _ := group.Get(1)
 	if v1 != "value for 1" {
@@ -69,12 +78,14 @@ func TestMultipleLoads(t *testing.T) {
 		return fmt.Sprintf("value %d", counter), nil
 	}
 
-	group := NewFactory("TestMultipleLoads", loader).Cache()
+	group := cache.NewFactory("TestMultipleLoads", loader).Cache()
 
 	v, _ := group.Get("key")
 	if v != "value 1" {
 		t.Errorf("Incorrect value for key: '%v', but expected 'value 1'", v)
 	}
+
+	waitForRistretto() // Wait until it stores the stuff
 
 	v, _ = group.Get("key")
 	if v != "value 1" {
@@ -89,6 +100,11 @@ func TestMultipleLoads(t *testing.T) {
 	}
 }
 
+// Sometimes we need to wait until values get propagated through the cache
+func waitForRistretto() {
+	ristrettoStore.(*store).store.Wait()
+}
+
 func TestMultipleGroups(t *testing.T) {
 	loader1 := func(key string) (string, error) {
 		return "1 - value for " + key, nil
@@ -97,8 +113,8 @@ func TestMultipleGroups(t *testing.T) {
 		return "2 - value for " + key, nil
 	}
 
-	group1 := NewFactory("group1", loader1).Cache()
-	group2 := NewFactory("group2", loader2).Cache()
+	group1 := cache.NewFactory("group1", loader1).Cache()
+	group2 := cache.NewFactory("group2", loader2).Cache()
 
 	v1, _ := group1.Get("key")
 	if v1 != "1 - value for key" {
@@ -120,9 +136,9 @@ func TestConcurrentLoads(t *testing.T) {
 		time.Sleep(100 * time.Millisecond) // Make sure the load is slow
 		return fmt.Sprintf("value for %s", key), nil
 	}
-	group := NewFactory("TestConcurrentLoads", loader).Cache()
+	group := cache.NewFactory("TestConcurrentLoads", loader).Cache()
 
-	getAndWait(group, 2, t)
+	getAndWait(group, t)
 
 	// Only one load should have occured
 	if counter != 2 {
@@ -130,13 +146,13 @@ func TestConcurrentLoads(t *testing.T) {
 	}
 }
 
-func getAndWait(group *Group[string, string], concurrentRoutines int, t *testing.T) {
+func getAndWait(group *cache.Group[string, string], t *testing.T) {
 	start := make(chan string) // Coordination of start
 	responseChannel := make(chan string, 2)
 	defer close(responseChannel)
 
 	// Multiple concurrent get
-	for i := 0; i < concurrentRoutines; i++ {
+	for i := 0; i < 2; i++ {
 		go func(val int) {
 			<-start
 			v, _ := group.Get("theKey")
@@ -147,7 +163,7 @@ func getAndWait(group *Group[string, string], concurrentRoutines int, t *testing
 	close(start) // Signal routines to start
 
 	// Wait until everyone is done
-	for i := 0; i < concurrentRoutines; i++ {
+	for i := 0; i < 2; i++ {
 		select {
 		case v := <-responseChannel:
 			if v != "value for theKey" {
@@ -166,9 +182,9 @@ func TestDuplicateSuppression(t *testing.T) {
 		time.Sleep(100 * time.Millisecond) // Make sure the load is slow
 		return fmt.Sprintf("value for %s", key), nil
 	}
-	group := NewFactory("TestDuplicateSuppression", loader).WithLoadDuplicateSuppression().Cache()
+	group := cache.NewFactory("TestDuplicateSuppression", loader).WithLoadDuplicateSuppression().Cache()
 
-	getAndWait(group, 3, t)
+	getAndWait(group, t)
 
 	// Only one load should have occured
 	if counter != 1 {
@@ -184,8 +200,8 @@ func TestFlush(t *testing.T) {
 		return counter, nil
 	}
 
-	group1 := NewFactory("group1-flush", loader).Cache()
-	group2 := NewFactory("group2-flush", loader).Cache()
+	group1 := cache.NewFactory("group1-flush", loader).Cache()
+	group2 := cache.NewFactory("group2-flush", loader).Cache()
 
 	v, _ := group1.Get("key")
 	if v != 1 {
@@ -198,6 +214,8 @@ func TestFlush(t *testing.T) {
 	}
 
 	group1.Clear()
+
+	waitForRistretto() // Wait until it stores the stuff
 
 	v, _ = group1.Get("key")
 	if v != 3 {
@@ -220,7 +238,7 @@ func TestPanicLoad(t *testing.T) {
 		return "nopanic", nil
 	}
 
-	group := NewFactory("TestPanicLoad", loader).WithLoadDuplicateSuppression().Cache()
+	group := cache.NewFactory("TestPanicLoad", loader).WithLoadDuplicateSuppression().Cache()
 
 	panicHandler(group)
 
@@ -230,7 +248,7 @@ func TestPanicLoad(t *testing.T) {
 	}
 }
 
-func panicHandler(group *Group[int64, string]) {
+func panicHandler(group *cache.Group[int64, string]) {
 	defer func() {
 		// do not let the panic below leak to the test
 		_ = recover()

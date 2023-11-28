@@ -16,23 +16,34 @@ limitations under the License.
 package cache
 
 import (
+	"regexp"
+	"time"
+
 	"gitlab.com/sustainyfacts/anycache/cache/singleflight"
+)
+
+var (
+	nameRegex = regexp.MustCompile("[a-zA-Z0-9_-]+")
 )
 
 type Factory[K int64 | string | uint64, V any] struct {
 	Name                     string
-	CacheLoader              func(key K) (V, error)
-	LoadDuplicateSuppression bool
-	MessageBroker            MessageBroker
-	Store                    Store
+	CacheLoader              func(key K) (V, error) // Loader in case of cache miss
+	LoadDuplicateSuppression bool                   // To avoid multiple concurrent loads for the same entry
+	MessageBroker            MessageBroker          // Message broker for distributed cache flush messages
+	Store                    Store                  // Store to cache entries
+	Ttl                      time.Duration          // Time to live for a cache entry
 }
 
 func (f Factory[K, V]) Cache() *Group[K, V] {
+	if !nameRegex.MatchString(f.Name) {
+		panic("allowed characters in the name are: [a-zA-Z0-9_-]")
+	}
 	if _, ok := allGroups[f.Name]; ok {
 		panic("cannot create two groups with the same name")
 	}
 	if f.CacheLoader == nil {
-		panic("no Cache Loader defined")
+		panic("no CacheLoader defined")
 	}
 	allGroups[f.Name] = true
 
@@ -53,7 +64,7 @@ func (f Factory[K, V]) Cache() *Group[K, V] {
 	}
 
 	// Configure the group for the store
-	config := GroupConfig{Ttl: 0, Cost: 0}
+	config := GroupConfig{Ttl: f.Ttl, Cost: 0}
 	store.ConfigureGroup(f.Name, config)
 
 	return &group
@@ -79,6 +90,11 @@ func (f Factory[K, V]) WithLoadDuplicateSuppression() Factory[K, V] {
 
 func (f Factory[K, V]) WithStore(s Store) Factory[K, V] {
 	f.Store = s
+	return f
+}
+
+func (f Factory[K, V]) WithTTL(ttl time.Duration) Factory[K, V] {
+	f.Ttl = ttl
 	return f
 }
 

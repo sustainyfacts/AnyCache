@@ -1,0 +1,29 @@
+version: '3.8'
+
+volumes:
+  dragonfly_data:
+
+# Service that can be used for testing the adapters
+services:
+  memcached:
+    image: "memcached:alpine"
+    ports:
+        - "11211:11211"
+
+  redis:
+    image: redis:latest
+    command: redis-server
+    ports:
+      - "6379:6379"
+
+  dragonfly:
+    image: 'docker.dragonflydb.io/dragonflydb/dragonfly'
+    ulimits:
+      memlock: -1
+    ports:
+      - "6380:6379"
+    # For better performance, consider `host` mode instead `port` to avoid docker NAT.
+    # `host` mode is NOT currently supported in Swarm Mode.
+    # https://docs.docker.com/compose/compose-file/compose-file-v3/#network_mode
+    volumes:
+      - dragonfly_data:/data

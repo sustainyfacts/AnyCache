@@ -2,6 +2,6 @@ go 1.21
 
 use (
 	./cache
-	./adapters/store_ristretto
-	./examples
+	./adapters/any_ristretto
+	./adapters/any_redis
 )
