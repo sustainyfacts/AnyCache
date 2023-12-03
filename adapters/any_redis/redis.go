@@ -11,14 +11,14 @@ import (
 var ctx = context.Background()
 
 func NewAdapter(hostAndPort string, password string) cache.Store {
-	return NewWithOptions(&redis.Options{
+	return NewAdapterWithOptions(&redis.Options{
 		Addr:     hostAndPort,
 		Password: password,
 		DB:       0, // use default DB
 	})
 }
 
-func NewWithOptions(opt *redis.Options) cache.Store {
+func NewAdapterWithOptions(opt *redis.Options) cache.Store {
 	rdb := redis.NewClient(opt)
 	return &store{store: rdb, groupConfigs: make(map[string]cache.GroupConfig)}
 }

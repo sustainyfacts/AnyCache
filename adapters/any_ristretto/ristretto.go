@@ -24,19 +24,25 @@ import (
 )
 
 func NewAdapter() cache.Store {
-	r, _ := ristretto.NewCache(&ristretto.Config{
+	return NewAdapterWithConfig(&ristretto.Config{
 		NumCounters: 1e7,       // number of keys to track frequency of (10M).
 		MaxCost:     1 << 30,   // maximum cost of cache (1GB).
 		BufferItems: 64,        // number of keys per Get buffer.
 		KeyToHash:   keyToHash, // allows sharing a single cache between different groups
 	})
+}
 
-	return &store{store: r, groupHashes: make(map[string]groupHash)}
+func NewAdapterWithConfig(config *ristretto.Config) cache.Store {
+	r, _ := ristretto.NewCache(config)
+
+	return &store{store: r, groupHashes: make(map[string]groupHash),
+		groupConfigs: make(map[string]cache.GroupConfig)}
 }
 
 type store struct {
-	store       *ristretto.Cache
-	groupHashes map[string]groupHash
+	store        *ristretto.Cache
+	groupHashes  map[string]groupHash
+	groupConfigs map[string]cache.GroupConfig
 }
 
 func (s *store) ConfigureGroup(name string, config cache.GroupConfig) {
@@ -47,6 +53,7 @@ func (s *store) ConfigureGroup(name string, config cache.GroupConfig) {
 	}
 	h1, h2 := z.KeyToHash(name)
 	s.groupHashes[name] = groupHash{h1: h1, h2: h2}
+	s.groupConfigs[name] = config
 }
 
 func (s *store) Get(key cache.GroupKey) (any, bool) {
