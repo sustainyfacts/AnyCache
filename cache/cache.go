@@ -16,8 +16,8 @@ limitations under the License.
 package cache
 
 var (
-	defaultStore Store = NewHashMapStore() // Default underlying cache implementation
-	allGroups          = map[string]bool{} // To avoid instanciating the same group twice
+	defaultStore Store = NewHashMapStore()    // Default underlying cache implementation
+	allGroups          = map[string][]Store{} // To avoid instanciating the same group twice for the same store
 )
 
 // Sets the default store for all the next groups to be created
@@ -48,8 +48,8 @@ type flightGroup[K comparable, V any] interface {
 
 func (g *Group[K, V]) Get(key K) (V, error) {
 	gk := g.store.Key(g.name, key)
-	if v, ok := g.store.Get(gk); ok {
-		return v.(V), nil
+	if v, err := g.store.Get(gk); err == nil || err != ErrKeyNotFound {
+		return v.(V), err
 	}
 
 	loadAndSet := func() (V, error) {
@@ -76,14 +76,6 @@ func (g *Group[K, V]) Del(key K) {
 	g.store.Del(gk)
 	if g.messageBroker != nil {
 		msg := cacheMsg{Group: g.name, Key: key}
-		g.messageBroker.Send(msg.bytes())
-	}
-}
-
-func (g *Group[K, V]) Clear() {
-	g.store.Clear(g.name)
-	if g.messageBroker != nil {
-		msg := cacheMsg{Group: g.name, Key: nil}
-		g.messageBroker.Send(msg.bytes())
+		go g.messageBroker.Send(msg.bytes()) // async call
 	}
 }

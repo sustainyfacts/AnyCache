@@ -3,6 +3,11 @@ package any_redis
 import (
 	"context"
 	"fmt"
+	"io"
+	"log"
+	"reflect"
+	"strconv"
+	"strings"
 
 	"github.com/redis/go-redis/v9"
 	"sustainyfacts.dev/anycache/cache"
@@ -10,56 +15,152 @@ import (
 
 var ctx = context.Background()
 
-func NewAdapter(hostAndPort string, password string) cache.Store {
-	return NewAdapterWithOptions(&redis.Options{
-		Addr:     hostAndPort,
-		Password: password,
-		DB:       0, // use default DB
-	})
+// Creates a new adapter for Redis, and checks for its availability
+// using the PING command and retrieves the server version. Uses the provided
+// topic so it can be used for cluster communication (distributed cache flush)
+func NewAdapterWithMessaging(url string, topic string) (cache.BrokerStore, error) {
+	return newAdapter(url, topic)
 }
 
-func NewAdapterWithOptions(opt *redis.Options) cache.Store {
-	rdb := redis.NewClient(opt)
-	return &store{store: rdb, groupConfigs: make(map[string]cache.GroupConfig)}
+// Creates a new adapter for Redis, and checks for its availability
+// using the PING command and retrieves the server version.
+func NewAdapter(url string) (cache.Store, error) {
+	return newAdapter(url, "")
 }
 
-type store struct {
-	store        *redis.Client
+func newAdapter(url string, topic string) (*adapter, error) {
+	opts, err := redis.ParseURL(url)
+	if err != nil {
+		return nil, err
+	}
+	rdb := redis.NewClient(opts)
+
+	pong, err := rdb.Ping(ctx).Result()
+	if err != nil {
+		return nil, err
+	}
+	if pong != "PONG" {
+		return nil, fmt.Errorf("invalid ping response: %s", pong)
+	}
+	info, err := rdb.Info(ctx, "server").Result()
+	if err != nil {
+		return nil, err
+	}
+	serverVersion := "unkown"
+	for _, line := range strings.Split(info, "\n") {
+		if strings.HasPrefix(line, "redis_version:") {
+			serverVersion = strings.TrimSpace(strings.Split(line, ":")[1])
+		}
+	}
+	log.Printf("Connected to Redis: %s", serverVersion)
+	return &adapter{rdb: rdb, groupConfigs: make(map[string]cache.GroupConfig), topic: topic}, nil
+}
+
+type adapter struct {
+	rdb          *redis.Client
+	topic        string // For messaging
 	groupConfigs map[string]cache.GroupConfig
 }
 
-func (s *store) ConfigureGroup(name string, config cache.GroupConfig) {
+func (a *adapter) ConfigureGroup(name string, config cache.GroupConfig) {
 	if config.Cost != 0 {
 		panic("Redis does not support Cost")
 	}
-	s.groupConfigs[name] = config
+	a.groupConfigs[name] = config
 }
 
-func (s *store) Get(key cache.GroupKey) (any, bool) {
-	v, err := s.store.Get(ctx, key.StoreKey.(string)).Result()
-	// FIXME it is not good to swallow errors
-	return v, err == nil
+func (a *adapter) Get(key cache.GroupKey) (any, error) {
+
+	v, err := a.rdb.Get(ctx, key.StoreKey.(string)).Result()
+	if err == redis.Nil {
+		return nil, cache.ErrKeyNotFound
+	} else if err != nil {
+		return nil, err
+	}
+
+	expectedType := a.groupConfigs[key.GroupName].ValueType
+	switch expectedType.Kind() {
+	case reflect.Int:
+		i, err := strconv.Atoi(v)
+		if err != nil {
+			panic(err)
+		}
+		return i, nil
+	case reflect.Int32:
+		i, err := strconv.ParseInt(v, 10, expectedType.Bits())
+		if err != nil {
+			panic(err)
+		}
+		return int32(i), nil
+	case reflect.Int64:
+		i, err := strconv.ParseInt(v, 10, expectedType.Bits())
+		if err != nil {
+			panic(err)
+		}
+		return int32(i), nil
+	case reflect.Float32, reflect.Float64:
+		i, err := strconv.ParseFloat(v, expectedType.Bits())
+		if err != nil {
+			panic(err)
+		}
+		return i, nil
+	case reflect.String:
+		return v, nil
+	default:
+		return nil, fmt.Errorf("unsupported type: %v", expectedType)
+	}
 }
 
 // new test
-func (s *store) Set(key cache.GroupKey, value any) bool {
-	ttl := s.groupConfigs[key.GroupName].Ttl
-	err := s.store.Set(ctx, key.StoreKey.(string), value, ttl).Err()
-	return err == nil
+func (a *adapter) Set(key cache.GroupKey, value any) error {
+	ttl := a.groupConfigs[key.GroupName].Ttl
+	return a.rdb.Set(ctx, key.StoreKey.(string), value, ttl).Err()
 }
 
-func (s *store) Del(key cache.GroupKey) {
-	s.store.Del(ctx, key.StoreKey.(string))
+func (a *adapter) Del(key cache.GroupKey) error {
+	return a.rdb.Del(ctx, key.StoreKey.(string)).Err()
 }
 
-// Note that this does not free memory, but rotates the hashes
-// so querying the same key will require a call to the cache loader function
-func (s *store) Clear(groupName string) {
-	// Thoughts: use versioning and rely on TTL?
-	panic("not implemented")
+func (a *adapter) Key(groupName string, key any) cache.GroupKey {
+	adapterKey := fmt.Sprintf("%s:%v", groupName, key)
+	return cache.GroupKey{GroupName: groupName, StoreKey: adapterKey}
 }
 
-func (s *store) Key(groupName string, key any) cache.GroupKey {
-	storeKey := fmt.Sprintf("%s:%v", groupName, key)
-	return cache.GroupKey{GroupName: groupName, StoreKey: storeKey}
+// Send a message to all other caches
+
+// Subcribe to messages from another caches
+
+// Implement cache.Broker
+func (a *adapter) Send(msg []byte) error {
+	if a.topic == "" {
+		panic("messing not configured")
+	}
+	return a.rdb.Publish(ctx, a.topic, msg).Err()
+}
+
+// Implement cache.Broker
+func (a *adapter) Subscribe(handler func(msg []byte)) (io.Closer, error) {
+	if a.topic == "" {
+		panic("messing not configured")
+	}
+	pubsub := a.rdb.Subscribe(ctx, a.topic)
+
+	// Start processing
+	go func() {
+		ch := pubsub.Channel()
+
+		for msg := range ch {
+			handler([]byte(msg.Payload))
+		}
+	}()
+
+	var cf closerFunc = pubsub.Close
+	return cf, nil
+}
+
+// To be able to return an anonymous function in Subscribe()
+type closerFunc func() error
+
+func (f closerFunc) Close() error {
+	return f()
 }

@@ -56,16 +56,21 @@ func (s *store) ConfigureGroup(name string, config cache.GroupConfig) {
 	s.groupConfigs[name] = config
 }
 
-func (s *store) Get(key cache.GroupKey) (any, bool) {
-	return s.store.Get(key.StoreKey)
+func (s *store) Get(key cache.GroupKey) (any, error) {
+	if v, ok := s.store.Get(key.StoreKey); ok {
+		return v, nil
+	}
+	return nil, cache.ErrKeyNotFound
 }
 
-func (s *store) Set(key cache.GroupKey, value any) bool {
-	return s.store.Set(key.StoreKey, value, 0)
+func (s *store) Set(key cache.GroupKey, value any) error {
+	s.store.Set(key.StoreKey, value, 0)
+	return nil // dropped values (above return false) are not errors
 }
 
-func (s *store) Del(key cache.GroupKey) {
+func (s *store) Del(key cache.GroupKey) error {
 	s.store.Del(key.StoreKey)
+	return nil
 }
 
 // Note that this does not free memory, but rotates the hashes

@@ -2,6 +2,7 @@ package any_redis
 
 import (
 	"fmt"
+	"sync"
 	"testing"
 	"time"
 
@@ -12,15 +13,20 @@ import (
 // Use the docker compose to start the instance.
 
 var (
-	redisStore = NewAdapter("localhost:6379", "")
-	testTTL    = 2 * time.Second // Otherwise the test cannot run twice
+	testTTL = 3 * time.Second // Otherwise the test cannot run twice
+	once    sync.Once
 )
 
-func init() {
+func setup() {
+	redisStore, err := NewAdapter("redis://localhost:6379/0?protocol=3")
+	if err != nil {
+		panic(err)
+	}
 	cache.SetDefaultStore(redisStore)
 }
 
 func TestCacheLoader(t *testing.T) {
+	once.Do(setup)
 
 	loader := func(key string) (string, error) {
 		return "value for " + key, nil
@@ -40,6 +46,8 @@ func TestCacheLoader(t *testing.T) {
 }
 
 func TestCacheLoaderNotFound(t *testing.T) {
+	once.Do(setup)
+
 	loader := func(key int64) (string, error) {
 		if key%2 == 0 {
 			return "", fmt.Errorf("Key not found")
@@ -61,6 +69,8 @@ func TestCacheLoaderNotFound(t *testing.T) {
 }
 
 func TestMultipleLoads(t *testing.T) {
+	once.Do(setup)
+
 	counter := 0
 	loader := func(key string) (string, error) {
 		counter++
@@ -88,6 +98,8 @@ func TestMultipleLoads(t *testing.T) {
 }
 
 func TestMultipleGroups(t *testing.T) {
+	once.Do(setup)
+
 	loader1 := func(key string) (string, error) {
 		return "1 - value for " + key, nil
 	}
@@ -112,6 +124,8 @@ func TestMultipleGroups(t *testing.T) {
 // This test makes sure that concurrent loads do not lead to multiple calls
 // to the cacheLoader function
 func TestConcurrentLoads(t *testing.T) {
+	once.Do(setup)
+
 	counter := 0
 	loader := func(key string) (string, error) {
 		counter++
@@ -158,6 +172,8 @@ func getAndWait(group *cache.Group[string, string], t *testing.T) {
 }
 
 func TestDuplicateSuppression(t *testing.T) {
+	once.Do(setup)
+
 	counter := 0
 	loader := func(key string) (string, error) {
 		counter++
@@ -176,6 +192,8 @@ func TestDuplicateSuppression(t *testing.T) {
 
 // Tests that a group can be flushed
 func TestFlush(t *testing.T) {
+	once.Do(setup)
+
 	counter := 0
 	loader := func(key string) (int, error) {
 		counter++
@@ -195,7 +213,7 @@ func TestFlush(t *testing.T) {
 		t.Errorf("group2 key lookup should be 2, but got %v", counter)
 	}
 
-	group1.Clear()
+	group1.Del("key")
 
 	v, _ = group1.Get("key")
 	if v != 3 {
@@ -209,6 +227,8 @@ func TestFlush(t *testing.T) {
 }
 
 func TestPanicLoad(t *testing.T) {
+	once.Do(setup)
+
 	counter := 0
 	loader := func(key int64) (string, error) {
 		counter++
@@ -234,4 +254,43 @@ func panicHandler(group *cache.Group[int64, string]) {
 		_ = recover()
 	}()
 	group.Get(1)
+}
+
+func TestDistributedFlush(t *testing.T) {
+	broker, err := NewAdapterWithMessaging("redis://localhost:6379/0?protocol=3", "cache.flush.topic")
+	if err != nil {
+		panic(err)
+	}
+	counter := 0
+	loader := func(key string) (int, error) {
+		counter++
+		return counter, nil
+	}
+	store1 := cache.NewHashMapStore()
+	store2 := cache.NewHashMapStore()
+	group1 := cache.NewFactory("dist-flush", loader).WithBroker(broker).WithStore(store1).Cache()
+	group2 := cache.NewFactory("dist-flush", loader).WithBroker(broker).WithStore(store2).Cache()
+
+	v, _ := group1.Get("key")
+	if v != 1 {
+		t.Errorf("group1 key lookup should be 1, but got %v", v)
+	}
+
+	v, _ = group2.Get("key")
+	if v != 2 { // This is not the same store so counter should increase
+		t.Errorf("group1 key lookup should be 2, but got %v", v)
+	}
+
+	group1.Del("key")
+
+	time.Sleep(10 * time.Millisecond) // Wait the cache flush message has been propagated
+
+	v, _ = group1.Get("key")
+	if v != 3 { // Count is increased by new call to loader
+		t.Errorf("group1 key lookup after flush should be 3, but got %v", v)
+	}
+	v, _ = group2.Get("key")
+	if v != 4 { // Count is increased by new call to loader as well
+		t.Errorf("group2 key lookup after flush should still be 2, but got %v", v)
+	}
 }

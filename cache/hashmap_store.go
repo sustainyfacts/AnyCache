@@ -36,18 +36,21 @@ func (s *store) ConfigureGroup(name string, config GroupConfig) {
 	s.stores[name] = &sync.Map{}
 }
 
-func (s *store) Get(key GroupKey) (any, bool) {
-	v, ok := s.stores[key.GroupName].Load(key.StoreKey)
-	return v, ok
+func (s *store) Get(key GroupKey) (any, error) {
+	if v, ok := s.stores[key.GroupName].Load(key.StoreKey); ok {
+		return v, nil
+	}
+	return nil, ErrKeyNotFound
 }
 
-func (s *store) Set(key GroupKey, value any) bool {
+func (s *store) Set(key GroupKey, value any) error {
 	s.stores[key.GroupName].Store(key.StoreKey, value)
-	return true
+	return nil
 }
 
-func (s *store) Del(key GroupKey) {
+func (s *store) Del(key GroupKey) error {
 	s.stores[key.GroupName].Delete(key.StoreKey)
+	return nil
 }
 
 func (s *store) Clear(groupName string) {

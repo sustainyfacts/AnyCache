@@ -16,6 +16,7 @@ limitations under the License.
 package cache
 
 import (
+	"reflect"
 	"regexp"
 	"time"
 
@@ -33,20 +34,17 @@ type Factory[K int64 | string | uint64, V any] struct {
 	MessageBroker            MessageBroker          // Message broker for distributed cache flush messages
 	Store                    Store                  // Store to cache entries
 	Ttl                      time.Duration          // Time to live for a cache entry
+	allowDuplicates          bool                   // Allow duplicate names for testing of distributed functionality
 }
 
 func (f Factory[K, V]) Cache() *Group[K, V] {
 	if !nameRegex.MatchString(f.Name) {
 		panic("allowed characters in the name are: [a-zA-Z0-9_-]")
 	}
-	if _, ok := allGroups[f.Name]; ok {
-		panic("cannot create two groups with the same name")
-	}
+
 	if f.CacheLoader == nil {
 		panic("no CacheLoader defined")
 	}
-	allGroups[f.Name] = true
-
 	// Using default store unless another one is specified
 	store := defaultStore
 	if f.Store != nil {
@@ -55,6 +53,18 @@ func (f Factory[K, V]) Cache() *Group[K, V] {
 	if store == nil {
 		panic("no default store set and no store provided in factory")
 	}
+	if stores, ok := allGroups[f.Name]; ok {
+		if !f.allowDuplicates {
+			panic("cannot create two groups with the same name")
+		}
+		for _, s := range stores {
+			if &s == &store {
+				panic("cannot create two groups with the same name for a given store")
+			}
+		}
+	}
+	allGroups[f.Name] = append(allGroups[f.Name], store)
+
 	group := Group[K, V]{store: store, name: f.Name, load: f.CacheLoader, messageBroker: f.MessageBroker}
 	if f.LoadDuplicateSuppression {
 		group.loadGroup = &singleflight.Group[K, V]{}
@@ -64,7 +74,7 @@ func (f Factory[K, V]) Cache() *Group[K, V] {
 	}
 
 	// Configure the group for the store
-	config := GroupConfig{Ttl: f.Ttl, Cost: 0}
+	config := GroupConfig{Ttl: f.Ttl, Cost: 0, ValueType: reflect.TypeOf(*new(V))}
 	store.ConfigureGroup(f.Name, config)
 
 	return &group
@@ -115,9 +125,10 @@ func NewDecorator[K int64 | string | uint64, V any](name string) Factory[K, V] {
 	return Factory[K, V]{Name: name}
 }
 
-// MessageBroker is an interface that can be used to provide clustered communication
-// to the cache, for sending a receiving Flush and DeleteKey messages
-type MessageBroker interface {
-	Send([]byte)                // Sends a message to all other caches
-	Subscribe(func(msg []byte)) // Subcribe to messages from another caches
+// Note: if you use the a broker for different cache groups, make sure that
+// the different groups are using different topics, so they do not receive
+// each others messages.
+func (f Factory[K, V]) withDuplicates() Factory[K, V] {
+	f.allowDuplicates = true
+	return f
 }

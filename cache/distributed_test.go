@@ -16,6 +16,7 @@ limitations under the License.
 package cache
 
 import (
+	"io"
 	"testing"
 	"time"
 )
@@ -28,8 +29,9 @@ func TestDistributedFlush(t *testing.T) {
 		return counter, nil
 	}
 	broker := newSimpleBroker()
-	group1 := NewFactory("group1-dist-flush", loader).WithBroker(broker).Cache()
-	group2 := NewFactory("group2-dist-flush", loader).WithBroker(broker).Cache()
+	// We use two stores to simulate two nodes with separate in-memory stores
+	group1 := NewFactory("dist-flush", loader).WithBroker(broker).WithStore(NewHashMapStore()).Cache()
+	group2 := NewFactory("dist-flush", loader).WithBroker(broker).WithStore(NewHashMapStore()).withDuplicates().Cache()
 
 	v, _ := group1.Get("key")
 	if v != 1 {
@@ -37,21 +39,21 @@ func TestDistributedFlush(t *testing.T) {
 	}
 
 	v, _ = group2.Get("key")
-	if v != 2 {
+	if v != 2 { // This is not the same store so counter should increase
 		t.Errorf("group1 key lookup should be 2, but got %v", v)
 	}
 
 	group1.Del("key")
 
-	time.Sleep(50 * time.Millisecond) // Wait until flush is done
+	time.Sleep(10 * time.Millisecond) // Wait the cache flush message has been propagated
 
 	v, _ = group1.Get("key")
-	if v != 3 {
-		t.Errorf("group1 key lookup after flush should be 3, but got %v", v) // Count is increased by new call to loader
+	if v != 3 { // Count is increased by new call to loader
+		t.Errorf("group1 key lookup after flush should be 3, but got %v", v)
 	}
 	v, _ = group2.Get("key")
-	if v != 2 {
-		t.Errorf("group2 key lookup after flush should still be 2, but got %v", v) // Count is increased by new call to loader
+	if v != 4 { // Count is increased by new call to loader as well
+		t.Errorf("group2 key lookup after flush should still be 2, but got %v", v)
 	}
 }
 
@@ -62,13 +64,36 @@ type simpleBroker struct {
 func newSimpleBroker() *simpleBroker {
 	return &simpleBroker{}
 }
-func (b *simpleBroker) Send(message []byte) {
+func (b *simpleBroker) Send(message []byte) error {
 	for _, subscriber := range b.subscribers {
 		// Handle in a go-routine
 		go subscriber(message)
 	}
+	return nil
 }
 
-func (b *simpleBroker) Subscribe(handler func(message []byte)) {
+func (b *simpleBroker) Subscribe(handler func(message []byte)) (io.Closer, error) {
 	b.subscribers = append(b.subscribers, handler)
+	var cf CloserFunc = func() error {
+		for i, h := range b.subscribers {
+			if &h == &handler {
+				b.subscribers = remove(b.subscribers, i)
+				return nil
+			}
+		}
+		panic("subscriber not found")
+	}
+	return cf, nil
+}
+
+func remove[V any](s []V, i int) []V {
+	s[i] = s[len(s)-1]
+	return s[:len(s)-1]
+}
+
+// To be able to return an anonymous function in Subscribe()
+type CloserFunc func() error
+
+func (f CloserFunc) Close() error {
+	return f()
 }

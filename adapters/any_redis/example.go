@@ -6,8 +6,9 @@ import (
 	"sustainyfacts.dev/anycache/cache"
 )
 
-func TestRistretto() {
-	cache.SetDefaultStore(NewAdapter("localhost:6379", ""))
+func TestRedis() {
+	rds, _ := NewAdapter("redis://localhost:6379/0?protocol=3")
+	cache.SetDefaultStore(rds)
 
 	group := cache.NewFactory("TestRedis",
 		func(key string) (string, error) {

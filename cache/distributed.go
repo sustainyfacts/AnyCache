@@ -19,11 +19,11 @@ import (
 	"encoding/json"
 )
 
-// Cache Message. For now only for flush
-// Serialized to/from JSON to be sent by the Message Broker.
+// Cache Message. Only for flush events
+// Serialized to/from JSON and sent by the Message Broker.
 type cacheMsg struct {
-	Group string
-	Key   any
+	Group string `json:"group"`
+	Key   any    `json:"key"`
 }
 
 func (cm *cacheMsg) bytes() []byte {
@@ -44,10 +44,6 @@ func (g *Group[K, V]) handleMessage(msg []byte) {
 	if cm.Group != g.name {
 		return // Ignore messages from other groups
 	}
-	if cm.Key == nil {
-		g.Clear()
-	} else {
-		gk := g.store.Key(g.name, cm.Key)
-		g.store.Del(gk)
-	}
+	gk := g.store.Key(g.name, cm.Key)
+	g.store.Del(gk)
 }

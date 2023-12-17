@@ -213,18 +213,18 @@ func TestFlush(t *testing.T) {
 		t.Errorf("group2 key lookup should be 2, but got %v", counter)
 	}
 
-	group1.Clear()
+	group1.Del("key")
 
 	waitForRistretto() // Wait until it stores the stuff
 
 	v, _ = group1.Get("key")
 	if v != 3 {
-		t.Errorf("group1 key lookup after flush should be 3, but got %v", v) // Count is increased by new call to loader
+		t.Errorf("group1 key lookup after Del should be 3, but got %v", v) // Count is increased by new call to loader
 	}
 
 	v, _ = group2.Get("key")
 	if v != 2 {
-		t.Errorf("group2 key lookup after flush should be 2, but got %v", v) // Count unchanged, cached value returned
+		t.Errorf("group2 key lookup after Del should be 2, but got %v", v) // Count unchanged, cached value returned
 	}
 }
 

@@ -132,7 +132,7 @@ func TestConcurrentLoads(t *testing.T) {
 
 func getAndWait(group *Group[string, string], concurrentRoutines int, t *testing.T) {
 	start := make(chan string) // Coordination of start
-	responseChannel := make(chan string, 2)
+	responseChannel := make(chan string, concurrentRoutines)
 	defer close(responseChannel)
 
 	// Multiple concurrent get
@@ -154,7 +154,7 @@ func getAndWait(group *Group[string, string], concurrentRoutines int, t *testing
 				t.Errorf("Read incorrect value: '%s', expected 'theKey'", v)
 			}
 		case <-time.After(5 * time.Second):
-			t.Errorf("timeout waiting on getter #%d of 2", i+1)
+			t.Errorf("timeout waiting on getter #%d of %d", i+1, concurrentRoutines)
 		}
 	}
 }
@@ -197,7 +197,7 @@ func TestFlush(t *testing.T) {
 		t.Errorf("group2 key lookup should be 2, but got %v", counter)
 	}
 
-	group1.Clear()
+	group1.Del("key")
 
 	v, _ = group1.Get("key")
 	if v != 3 {
