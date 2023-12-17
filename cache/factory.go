@@ -69,13 +69,14 @@ func (f Factory[K, V]) Cache() *Group[K, V] {
 	if f.LoadDuplicateSuppression {
 		group.loadGroup = &singleflight.Group[K, V]{}
 	}
-	if group.messageBroker != nil {
-		group.messageBroker.Subscribe(group.handleMessage)
-	}
 
 	// Configure the group for the store
 	config := GroupConfig{Ttl: f.Ttl, Cost: 0, ValueType: reflect.TypeOf(*new(V))}
 	store.ConfigureGroup(f.Name, config)
+
+	if group.messageBroker != nil {
+		group.messageBroker.Subscribe(group.handleMessage)
+	}
 
 	return &group
 }

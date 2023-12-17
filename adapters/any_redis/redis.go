@@ -28,6 +28,11 @@ func NewAdapter(url string) (cache.Store, error) {
 	return newAdapter(url, "")
 }
 
+// Creates a new adapter for Redis with redis.Client given as parameter
+func NewAdapterWithClient(rdb *redis.Client, topic string) (cache.Store, error) {
+	return &adapter{rdb: rdb, groupConfigs: make(map[string]cache.GroupConfig), topic: topic}, nil
+}
+
 func newAdapter(url string, topic string) (*adapter, error) {
 	opts, err := redis.ParseURL(url)
 	if err != nil {
