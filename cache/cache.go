@@ -15,6 +15,10 @@ limitations under the License.
 */
 package cache
 
+import (
+	"log"
+)
+
 var (
 	defaultStore Store = NewHashMapStore()    // Default underlying cache implementation
 	allGroups          = map[string][]Store{} // To avoid instanciating the same group twice for the same store
@@ -37,6 +41,9 @@ type Group[K comparable, V any] struct {
 
 	// messageBroker is used for clustered events like flushing of entries
 	messageBroker MessageBroker
+
+	// debug enabled
+	debug bool
 }
 
 // flightGroup is defined as an interface which flightgroup.Group
@@ -53,6 +60,7 @@ func (g *Group[K, V]) Get(key K) (V, error) {
 	}
 
 	loadAndSet := func() (V, error) {
+		g.log("loading key %v", key)
 		// Not found in cache, using loader
 		v, err := g.load(key)
 
@@ -72,10 +80,25 @@ func (g *Group[K, V]) Get(key K) (V, error) {
 }
 
 func (g *Group[K, V]) Del(key K) {
-	gk := g.store.Key(g.name, key)
-	g.store.Del(gk)
+	g.delNoFlush(key)
 	if g.messageBroker != nil {
 		msg := cacheMsg{Group: g.name, Key: key}
 		go g.messageBroker.Send(msg.bytes()) // async call
 	}
+}
+
+func (g *Group[K, V]) delNoFlush(key K) {
+	g.log("delete key %v", key)
+	gk := g.store.Key(g.name, key)
+	g.store.Del(gk)
+}
+
+func (g *Group[K, V]) log(message string, args ...any) {
+	if g.debug {
+		log.Printf("group(%s): "+message, g.name, args)
+	}
+}
+
+func (g *Group[K, V]) warn(message string, args ...any) {
+	log.Printf("Warn - group(%s): "+message, g.name, args)
 }

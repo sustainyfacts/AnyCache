@@ -35,6 +35,7 @@ type Factory[K int64 | string | uint64, V any] struct {
 	Store                    Store                  // Store to cache entries
 	Ttl                      time.Duration          // Time to live for a cache entry
 	allowDuplicates          bool                   // Allow duplicate names for testing of distributed functionality
+	debug                    bool                   // Prints debug information
 }
 
 func (f Factory[K, V]) Cache() *Group[K, V] {
@@ -65,7 +66,9 @@ func (f Factory[K, V]) Cache() *Group[K, V] {
 	}
 	allGroups[f.Name] = append(allGroups[f.Name], store)
 
-	group := Group[K, V]{store: store, name: f.Name, load: f.CacheLoader, messageBroker: f.MessageBroker}
+	group := Group[K, V]{store: store, name: f.Name,
+		load: f.CacheLoader, messageBroker: f.MessageBroker,
+		debug: f.debug}
 	if f.LoadDuplicateSuppression {
 		group.loadGroup = &singleflight.Group[K, V]{}
 	}
@@ -101,6 +104,11 @@ func (f Factory[K, V]) WithLoadDuplicateSuppression() Factory[K, V] {
 
 func (f Factory[K, V]) WithStore(s Store) Factory[K, V] {
 	f.Store = s
+	return f
+}
+
+func (f Factory[K, V]) WithDebug() Factory[K, V] {
+	f.debug = true
 	return f
 }
 

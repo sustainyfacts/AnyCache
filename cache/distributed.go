@@ -41,9 +41,15 @@ func fromBytes(b []byte) *cacheMsg {
 // the message broker
 func (g *Group[K, V]) handleMessage(msg []byte) {
 	cm := fromBytes(msg)
+	if g.debug {
+		g.log("handleMessage: %v", cm)
+	}
 	if cm.Group != g.name {
 		return // Ignore messages from other groups
 	}
-	gk := g.store.Key(g.name, cm.Key)
-	g.store.Del(gk)
+	if key, ok := cm.Key.(K); ok {
+		g.delNoFlush(key)
+	} else {
+		g.warn("handleMessage: invalid key type %T", cm.Key)
+	}
 }
