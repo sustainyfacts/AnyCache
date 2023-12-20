@@ -41,9 +41,8 @@ func fromBytes(b []byte) *cacheMsg {
 // the message broker
 func (g *Group[K, V]) handleMessage(msg []byte) {
 	cm := fromBytes(msg)
-	if g.debug {
-		g.log("handleMessage: %v", cm)
-	}
+	g.log("handleMessage: %v", cm)
+
 	if cm.Group != g.name {
 		return // Ignore messages from other groups
 	}
