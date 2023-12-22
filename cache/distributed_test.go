@@ -19,6 +19,8 @@ import (
 	"io"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
 )
 
 // Tests that a group can be flushed
@@ -96,4 +98,46 @@ type CloserFunc func() error
 
 func (f CloserFunc) Close() error {
 	return f()
+}
+
+// Test second level store with two distinct in-memory stores and a common
+// 2nd level store, and a message broker for distributed deletes
+func TestSecondLevel(t *testing.T) {
+	counter := 0
+	loader := func(key string) (int, error) {
+		counter++
+		return counter, nil
+	}
+
+	broker := newSimpleBroker()
+	secondLevelStore := NewHashMapStore()
+	group1 := NewFactory("2ndlevel", loader).WithStore(NewHashMapStore()).WithBroker(broker).WithSecondLevelStore(secondLevelStore).Cache()
+	group2 := NewFactory("2ndlevel", loader).WithStore(NewHashMapStore()).WithBroker(broker).WithSecondLevelStore(secondLevelStore).withDuplicates().Cache()
+
+	v1, _ := group1.Get("key")
+	assert.Equal(t, 1, v1, "incorrect value for 'key'")
+	assert.Equal(t, 1, counter, "loader called once")
+
+	time.Sleep(10 * time.Millisecond) // Wait to make sure the second level cache is set (async)
+
+	v1SecondLevel, _ := secondLevelStore.Get(secondLevelStore.Key("2ndlevel", "key"))
+	assert.Equal(t, 1, v1SecondLevel, "incorrect value for 'key' in 2ndLevel store")
+	v2, _ := group2.Get("key")
+	assert.Equal(t, 1, v2, "incorrect value for 'key'")
+	assert.Equal(t, 1, counter, "loader called once")
+
+	group2.Del("key") // Group2 Delete causes reload
+	v2, _ = group2.Get("key")
+	assert.Equal(t, 2, v2, "incorrect value for 'key'")
+	assert.Equal(t, 2, counter, "loader called again")
+
+	time.Sleep(10 * time.Millisecond) // Wait to make sure the second level cache is set (async)
+
+	v2SecondLevel, _ := secondLevelStore.Get(secondLevelStore.Key("2ndlevel", "key"))
+	assert.Equal(t, 2, v2SecondLevel, "incorrect value for 'key' in 2ndLevel store")
+
+	// Group1 fetches the new value from the 2nd level cache
+	v1, _ = group1.Get("key")
+	assert.Equal(t, 2, v1, "incorrect value for 'key'")
+	assert.Equal(t, 2, counter, "loader not called again")
 }

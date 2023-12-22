@@ -19,6 +19,8 @@ import (
 	"fmt"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestCacheLoader(t *testing.T) {
@@ -236,4 +238,55 @@ func panicHandler(group *Group[int64, string]) {
 		_ = recover()
 	}()
 	group.Get(1)
+}
+
+func TestWithReloadOnDelete(t *testing.T) {
+	counter := 0
+	loader := func(key string) (int, error) {
+		counter++
+		return counter, nil
+	}
+
+	group := NewFactory("WithReloadOnDelete ", loader).WithReloadOnDelete().Cache()
+	v, _ := group.Get("key")
+	assert.Equal(t, 1, v, "incorrect value for 'key'")
+	assert.Equal(t, 1, counter, "loader called once")
+
+	group.Del("key") // Delete / Flush
+
+	assert.Equal(t, 2, counter, "loader called on reload")
+	v, _ = group.Get("key")
+	assert.Equal(t, 2, counter, "loader not called again on GET")
+	assert.Equal(t, 2, v, "incorrect value for 'key'")
+}
+
+// Test that a slow loader does not block for Get when using "ReloadOnDelete"
+func TestWithReloadNonBlocking(t *testing.T) {
+	block := make(chan bool, 2) // Block loader
+	counter := 0
+	loader := func(key string) (int, error) {
+		<-block // Block
+		counter++
+		return counter, nil
+	}
+	group := NewFactory("TestWithReloadNonBlocking ", loader).WithLoadDuplicateSuppression().WithReloadOnDelete().Cache()
+	block <- true // Do not block first load
+	v, _ := group.Get("key")
+	assert.Equal(t, 1, v, "incorrect value for 'key'")
+	assert.Equal(t, 1, counter, "loader called once")
+
+	go group.Del("key") // Delete / Flush (reload blocked, so run in a goroutine)
+
+	assert.Equal(t, 1, counter, "reload not complete")
+	v, _ = group.Get("key") // We can still get values from the cache (old value)
+	assert.Equal(t, 1, counter, "loader not called yet, getting old value")
+	assert.Equal(t, 1, v, "incorrect value for 'key'")
+
+	close(block)                      // Unblock loader
+	time.Sleep(10 * time.Millisecond) // Wait a bit
+
+	assert.Equal(t, 2, counter, "reload completed")
+	v, _ = group.Get("key")
+	assert.Equal(t, 2, counter, "reload done, getting new value")
+	assert.Equal(t, 2, v, "incorrect value for 'key'")
 }

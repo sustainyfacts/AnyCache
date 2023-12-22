@@ -47,7 +47,9 @@ func (g *Group[K, V]) handleMessage(msg []byte) {
 		return // Ignore messages from other groups
 	}
 	if key, ok := cm.Key.(K); ok {
-		g.delNoFlush(key)
+		// Do not clear second level for distributed flush notification
+		// because this is the responsibility of the source event
+		g.delNoFlush(key, false)
 	} else {
 		g.warn("handleMessage: invalid key type %T", cm.Key)
 	}

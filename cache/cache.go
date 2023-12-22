@@ -30,9 +30,10 @@ func SetDefaultStore(store Store) {
 }
 
 type Group[K comparable, V any] struct {
-	store Store // The underlying cache engine
-	name  string
-	load  func(key K) (V, error)
+	store  Store // The underlying cache engine
+	store2 Store // Second level store
+	name   string
+	load   func(key K) (V, error)
 
 	// loadGroup ensures that each key is only fetched once
 	// (either locally or remotely), regardless of the number of
@@ -42,8 +43,8 @@ type Group[K comparable, V any] struct {
 	// messageBroker is used for clustered events like flushing of entries
 	messageBroker MessageBroker
 
-	// debug enabled
-	debug bool
+	debug          bool // debug enabled
+	reloadOnDelete bool // reload on Deletes
 }
 
 // flightGroup is defined as an interface which flightgroup.Group
@@ -59,38 +60,68 @@ func (g *Group[K, V]) Get(key K) (V, error) {
 		return v.(V), err
 	}
 
-	loadAndSet := func() (V, error) {
+	if g.store2 != nil { // Fetch from the second level store
+		gk2 := g.store.Key(g.name, key)
+		if v, err := g.store2.Get(gk2); err == nil || err != ErrKeyNotFound {
+			return v.(V), err
+		}
+	}
+
+	return g.loadAndSet(key, gk)
+}
+
+func (g *Group[K, V]) loadAndSet(key K, gk GroupKey) (V, error) {
+	loadAndSetFunc := func() (V, error) {
 		g.log("loading key %v", key)
 		// Not found in cache, using loader
 		v, err := g.load(key)
-
 		if err != nil {
 			return v, err
 		}
 
 		// Set the value
-		g.store.Set(gk, v)
+		err = g.store.Set(gk, v)
+		if err != nil {
+			return v, err
+		}
+
+		// Set the value on the second level store
+		if g.store2 != nil {
+			gk2 := g.store.Key(g.name, key)
+			go g.store2.Set(gk2, v) // Async
+		}
+
 		return v, nil
 	}
 
 	if g.loadGroup != nil {
-		return g.loadGroup.Do(key, loadAndSet)
+		return g.loadGroup.Do(key, loadAndSetFunc)
 	}
-	return loadAndSet()
+	return loadAndSetFunc()
 }
 
 func (g *Group[K, V]) Del(key K) {
-	g.delNoFlush(key)
+	g.delNoFlush(key, true)
 	if g.messageBroker != nil {
 		msg := cacheMsg{Group: g.name, Key: key}
 		go g.messageBroker.Send(msg.bytes()) // async call
 	}
 }
 
-func (g *Group[K, V]) delNoFlush(key K) {
-	g.log("delete key %v", key)
+func (g *Group[K, V]) delNoFlush(key K, deleteSecondLevel bool) {
 	gk := g.store.Key(g.name, key)
-	g.store.Del(gk)
+	if g.reloadOnDelete {
+		g.log("reload key %v", key)
+		g.loadAndSet(key, gk)
+	} else {
+		g.log("delete key %v", key)
+		g.store.Del(gk)
+		// Delete the value on the second level store
+		if g.store2 != nil && deleteSecondLevel {
+			gk2 := g.store.Key(g.name, key)
+			g.store2.Del(gk2)
+		}
+	}
 }
 
 func (g *Group[K, V]) log(message string, args ...any) {

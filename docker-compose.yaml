@@ -16,6 +16,12 @@ services:
     ports:
       - "6379:6379"
 
+  nats:
+    image: nats:2.10
+    ports:
+      - "4222:4222"
+    command: "--name nats"
+
   dragonfly:
     image: 'docker.dragonflydb.io/dragonflydb/dragonfly'
     ulimits:

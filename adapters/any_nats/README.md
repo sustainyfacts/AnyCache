@@ -1,6 +1,6 @@
 # Ristretto Adapter
 
-This is the ristretto adapter for AnyCache.
+This is the NATS adapter for AnyCache, to provide cluster communication.
 
 ## Usage
 

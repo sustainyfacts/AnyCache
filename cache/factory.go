@@ -32,10 +32,12 @@ type Factory[K int64 | string | uint64, V any] struct {
 	CacheLoader              func(key K) (V, error) // Loader in case of cache miss
 	LoadDuplicateSuppression bool                   // To avoid multiple concurrent loads for the same entry
 	MessageBroker            MessageBroker          // Message broker for distributed cache flush messages
-	Store                    Store                  // Store to cache entries
-	Ttl                      time.Duration          // Time to live for a cache entry
-	allowDuplicates          bool                   // Allow duplicate names for testing of distributed functionality
-	debug                    bool                   // Prints debug information
+	Store                    Store
+	SecondLevelStore         Store
+	Ttl                      time.Duration // Time to live for a cache entry
+	allowDuplicates          bool          // Allow duplicate names for testing of distributed functionality
+	debug                    bool          //
+	reloadOnDelete           bool          // Immediately reload on flush to avoid cache misses
 }
 
 func (f Factory[K, V]) Cache() *Group[K, V] {
@@ -68,14 +70,17 @@ func (f Factory[K, V]) Cache() *Group[K, V] {
 
 	group := Group[K, V]{store: store, name: f.Name,
 		load: f.CacheLoader, messageBroker: f.MessageBroker,
-		debug: f.debug}
+		debug: f.debug, reloadOnDelete: f.reloadOnDelete, store2: f.SecondLevelStore}
 	if f.LoadDuplicateSuppression {
 		group.loadGroup = &singleflight.Group[K, V]{}
 	}
 
 	// Configure the group for the store
 	config := GroupConfig{Ttl: f.Ttl, Cost: 0, ValueType: reflect.TypeOf(*new(V))}
-	store.ConfigureGroup(f.Name, config)
+	group.store.ConfigureGroup(f.Name, config)
+	if f.SecondLevelStore != nil {
+		group.store2.ConfigureGroup(f.Name, config)
+	}
 
 	if group.messageBroker != nil {
 		group.messageBroker.Subscribe(group.handleMessage)
@@ -107,8 +112,27 @@ func (f Factory[K, V]) WithStore(s Store) Factory[K, V] {
 	return f
 }
 
+// Use a Second Level Store. This woud usually be a remote service (Redis for example)
+// that can be used as a second level cache. This can be used to minimise calls to
+// load accross a cluster of servers with in-memory caches.
+func (f Factory[K, V]) WithSecondLevelStore(s Store) Factory[K, V] {
+	f.SecondLevelStore = s
+	return f
+}
+
+// Use this option to print debug information
 func (f Factory[K, V]) WithDebug() Factory[K, V] {
 	f.debug = true
+	return f
+}
+
+// Immediately reload on Delete/Flush to avoid cache misses.
+//
+// Note that with this option, calls to Del() will trigger a call to
+// load the loader function and not return until the load is completed
+// a the new value stored in the cache
+func (f Factory[K, V]) WithReloadOnDelete() Factory[K, V] {
+	f.reloadOnDelete = true
 	return f
 }
 
