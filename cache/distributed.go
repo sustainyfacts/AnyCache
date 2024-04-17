@@ -21,18 +21,18 @@ import (
 
 // Cache Message. Only for flush events
 // Serialized to/from JSON and sent by the Message Broker.
-type cacheMsg struct {
+type cacheMsg[K comparable] struct {
 	Group string `json:"group"`
-	Key   any    `json:"key"`
+	Key   K      `json:"key"`
 }
 
-func (cm *cacheMsg) bytes() []byte {
+func (cm *cacheMsg[K]) bytes() []byte {
 	b, _ := json.Marshal(cm)
 	return b
 }
 
-func fromBytes(b []byte) *cacheMsg {
-	cm := cacheMsg{}
+func (g *Group[K, V]) fromBytes(b []byte) *cacheMsg[K] {
+	cm := cacheMsg[K]{}
 	json.Unmarshal(b, &cm)
 	return &cm
 }
@@ -40,17 +40,13 @@ func fromBytes(b []byte) *cacheMsg {
 // Message handler function to process messages from
 // the message broker
 func (g *Group[K, V]) handleMessage(msg []byte) {
-	cm := fromBytes(msg)
+	cm := g.fromBytes(msg)
 	g.log("handleMessage: %v", cm)
 
 	if cm.Group != g.name {
 		return // Ignore messages from other groups
 	}
-	if key, ok := cm.Key.(K); ok {
-		// Do not clear second level for distributed flush notification
-		// because this is the responsibility of the source event
-		g.delNoFlush(key, false)
-	} else {
-		g.warn("handleMessage: invalid key type %T", cm.Key)
-	}
+	// Do not clear second level for distributed flush notification
+	// because this is the responsibility of the source event
+	g.delNoFlush(cm.Key, false)
 }

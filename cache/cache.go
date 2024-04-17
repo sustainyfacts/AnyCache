@@ -103,7 +103,7 @@ func (g *Group[K, V]) loadAndSet(key K, gk GroupKey) (V, error) {
 func (g *Group[K, V]) Del(key K) {
 	g.delNoFlush(key, true)
 	if g.messageBroker != nil {
-		msg := cacheMsg{Group: g.name, Key: key}
+		msg := cacheMsg[K]{Group: g.name, Key: key}
 		go g.messageBroker.Send(msg.bytes()) // async call
 	}
 }
