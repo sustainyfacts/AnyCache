@@ -4,7 +4,7 @@ go 1.21
 
 require (
 	github.com/redis/go-redis/v9 v9.3.0
-	sustainyfacts.dev/anycache/cache v0.5.1
+	sustainyfacts.dev/anycache/cache v0.5.2
 )
 
 require (
