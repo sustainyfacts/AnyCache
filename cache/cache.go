@@ -61,7 +61,7 @@ func (g *Group[K, V]) Get(key K) (V, error) {
 	}
 
 	if g.store2 != nil { // Fetch from the second level store
-		gk2 := g.store.Key(g.name, key)
+		gk2 := g.store2.Key(g.name, key)
 		if v, err := g.store2.Get(gk2); err == nil || err != ErrKeyNotFound {
 			return v.(V), err
 		}
@@ -87,7 +87,7 @@ func (g *Group[K, V]) loadAndSet(key K, gk GroupKey) (V, error) {
 
 		// Set the value on the second level store
 		if g.store2 != nil {
-			gk2 := g.store.Key(g.name, key)
+			gk2 := g.store2.Key(g.name, key)
 			go g.store2.Set(gk2, v) // Async
 		}
 
