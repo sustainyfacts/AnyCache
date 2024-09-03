@@ -3,8 +3,8 @@ module sustainyfacts.dev/anycache/adapters/examples
 go 1.21
 
 require (
-	sustainyfacts.dev/anycache/adapters/any_redis v0.1.0
-	sustainyfacts.dev/anycache/adapters/any_ristretto v0.1.0
+	sustainyfacts.dev/anycache/adapters/any_redis v0.1.1
+	sustainyfacts.dev/anycache/adapters/any_ristretto v0.1.1
 	sustainyfacts.dev/anycache/cache v0.5.2
 )
 

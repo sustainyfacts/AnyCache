@@ -5,3 +5,5 @@ golang.org/x/term v0.5.0/go.mod h1:jMB1sMXY+tzblOD4FWmEbocvup2/aLOaQEp7JmGp78k=
 golang.org/x/text v0.13.0/go.mod h1:TvPlkZtksWOMsz7fbANvkp4WM8x/WCo/om8BMLbz+aE=
 gopkg.in/yaml.v2 v2.2.2 h1:ZCJp+EgiOT7lHqUV2J862kp8Qj64Jo6az82+3Td9dZw=
 sustainyfacts.dev/anycache/cache v0.5.2/go.mod h1:fjPm1ASDuBsiML5AUNuXulopfEV/uSBCUfqJDSJkLhw=
+sustainyfacts.dev/anycache/adapters/any_redis v0.1.1/go.mod h1:/frjTPo2cfcX3UPpDw8EyhhW1HrXyhs4X7Ps0GKPRIk=
+sustainyfacts.dev/anycache/adapters/any_ristretto v0.1.1/go.mod h1:inHoZtNfBIhs9YzXaRMUrkVjskyT9eIT1dgq9Gj0t6k=
