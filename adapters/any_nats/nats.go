@@ -39,6 +39,13 @@ func NewAdapter(urls, topic string, options ...nats.Option) (cache.MessageBroker
 	return &NatsBroker{conn: nc, topic: topic}, nil
 }
 
+// Creates a new adapter for NATS with nats.Conn given as parameter
+func NewAdapterWithClient(nc *nats.Conn, topic string) (cache.MessageBroker, error) {
+	version := nc.ConnectedServerVersion()
+	log.Printf("Connected to NATS, version %s", version)
+	return &NatsBroker{conn: nc, topic: topic}, nil
+}
+
 // Implement Cache.MessageBroker
 func (b *NatsBroker) Send(msg []byte) error {
 	err := b.conn.Publish(b.topic, msg)
