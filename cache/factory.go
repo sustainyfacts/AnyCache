@@ -27,7 +27,7 @@ var (
 	nameRegex = regexp.MustCompile("[a-zA-Z0-9_-]+")
 )
 
-type Factory[K int64 | string | uint64, V any] struct {
+type Factory[K comparable, V any] struct {
 	Name                     string
 	CacheLoader              func(key K) (V, error) // Loader in case of cache miss
 	LoadDuplicateSuppression bool                   // To avoid multiple concurrent loads for the same entry
@@ -150,18 +150,17 @@ func (f Factory[K, V]) WithBroker(broker MessageBroker) Factory[K, V] {
 }
 
 // Convenience methods to inject the cache into other libraries
-func NewFactory[K int64 | string | uint64, V any](name string, cacheLoader func(key K) (V, error)) Factory[K, V] {
+func NewFactory[K comparable, V any](name string, cacheLoader func(key K) (V, error)) Factory[K, V] {
 	return Factory[K, V]{Name: name, CacheLoader: cacheLoader}
 }
 
-func NewDecorator[K int64 | string | uint64, V any](name string) Factory[K, V] {
+func NewDecorator[K comparable, V any](name string) Factory[K, V] {
 	return Factory[K, V]{Name: name}
 }
 
-// Note: if you use the a broker for different cache groups, make sure that
-// the different groups are using different topics, so they do not receive
-// each others messages.
-func (f Factory[K, V]) withDuplicates() Factory[K, V] {
+// AllowDuplicates will allow duplicate names for cache groups.
+// It is used for testing of distributed functionality
+func (f Factory[K, V]) AllowDuplicates() Factory[K, V] {
 	f.allowDuplicates = true
 	return f
 }

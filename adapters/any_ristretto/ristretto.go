@@ -105,14 +105,27 @@ type groupKey struct {
 }
 
 // Hashing function
-func keyToHash(key interface{}) (uint64, uint64) {
-	if key == nil {
+func keyToHash(gkey interface{}) (uint64, uint64) {
+	if gkey == nil {
 		panic("key cannot be nil")
 	}
-	groupKey, ok := key.(groupKey)
+	groupKey, ok := gkey.(groupKey)
 	if !ok {
 		panic("unexpected key type")
 	}
-	h1, h2 := z.KeyToHash(groupKey.key)
+	var h1, h2 uint64
+	if key, ok := groupKey.key.([]byte); ok {
+		h1, h2 = z.KeyToHash(key)
+	} else if key, ok := groupKey.key.(string); ok {
+		h1, h2 = z.KeyToHash(key)
+	} else if key, ok := groupKey.key.(Stringer); ok {
+		h1, h2 = z.KeyToHash(key.String())
+	} else {
+		h1, h2 = z.KeyToHash(groupKey.key)
+	}
 	return h1*hashMultiplierValue + groupKey.hash.h1, h2*hashMultiplierValue + groupKey.hash.h2
+}
+
+type Stringer interface {
+	String() string
 }

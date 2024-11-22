@@ -13,7 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-package cache
+package tests
 
 import (
 	"io"
@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"sustainyfacts.dev/anycache/cache"
 )
 
 // Tests that a group can be flushed
@@ -32,8 +33,8 @@ func TestDistributedFlush(t *testing.T) {
 	}
 	broker := newSimpleBroker()
 	// We use two stores to simulate two nodes with separate in-memory stores
-	group1 := NewFactory("dist-flush", loader).WithBroker(broker).WithStore(NewHashMapStore()).Cache()
-	group2 := NewFactory("dist-flush", loader).WithBroker(broker).WithStore(NewHashMapStore()).withDuplicates().Cache()
+	group1 := cache.NewFactory("dist-flush", loader).WithBroker(broker).WithStore(cache.NewHashMapStore()).Cache()
+	group2 := cache.NewFactory("dist-flush", loader).WithBroker(broker).WithStore(cache.NewHashMapStore()).AllowDuplicates().Cache()
 
 	v, _ := group1.Get("key")
 	if v != 1 {
@@ -110,9 +111,9 @@ func TestSecondLevel(t *testing.T) {
 	}
 
 	broker := newSimpleBroker()
-	secondLevelStore := NewHashMapStore()
-	group1 := NewFactory("2ndlevel", loader).WithStore(NewHashMapStore()).WithBroker(broker).WithSecondLevelStore(secondLevelStore).Cache()
-	group2 := NewFactory("2ndlevel", loader).WithStore(NewHashMapStore()).WithBroker(broker).WithSecondLevelStore(secondLevelStore).withDuplicates().Cache()
+	secondLevelStore := cache.NewHashMapStore()
+	group1 := cache.NewFactory("2ndlevel", loader).WithStore(cache.NewHashMapStore()).WithBroker(broker).WithSecondLevelStore(secondLevelStore).Cache()
+	group2 := cache.NewFactory("2ndlevel", loader).WithStore(cache.NewHashMapStore()).WithBroker(broker).WithSecondLevelStore(secondLevelStore).AllowDuplicates().Cache()
 
 	v1, _ := group1.Get("key")
 	assert.Equal(t, 1, v1, "incorrect value for 'key'")

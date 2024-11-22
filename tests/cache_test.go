@@ -13,7 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-package cache
+package tests
 
 import (
 	"fmt"
@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"sustainyfacts.dev/anycache/cache"
 )
 
 func TestCacheLoader(t *testing.T) {
@@ -28,7 +29,7 @@ func TestCacheLoader(t *testing.T) {
 		return "value for " + key, nil
 	}
 
-	group := NewFactory("TestCacheLoader", loader).Cache()
+	group := cache.NewFactory("TestCacheLoader", loader).Cache()
 
 	v1, _ := group.Get("key1")
 	if v1 != "value for key1" {
@@ -51,7 +52,7 @@ func TestCacheLoaderNotFound(t *testing.T) {
 		return fmt.Sprintf("value for %d", key), nil
 	}
 
-	group := NewFactory("TestCacheLoaderNotFound", loader).Cache()
+	group := cache.NewFactory("TestCacheLoaderNotFound", loader).Cache()
 
 	v1, _ := group.Get(1)
 	if v1 != "value for 1" {
@@ -71,7 +72,7 @@ func TestMultipleLoads(t *testing.T) {
 		return fmt.Sprintf("value %d", counter), nil
 	}
 
-	group := NewFactory("TestMultipleLoads", loader).Cache()
+	group := cache.NewFactory("TestMultipleLoads", loader).Cache()
 
 	v, _ := group.Get("key")
 	if v != "value 1" {
@@ -99,8 +100,8 @@ func TestMultipleGroups(t *testing.T) {
 		return "2 - value for " + key, nil
 	}
 
-	group1 := NewFactory("group1", loader1).Cache()
-	group2 := NewFactory("group2", loader2).Cache()
+	group1 := cache.NewFactory("group1", loader1).Cache()
+	group2 := cache.NewFactory("group2", loader2).Cache()
 
 	v1, _ := group1.Get("key")
 	if v1 != "1 - value for key" {
@@ -122,7 +123,7 @@ func TestConcurrentLoads(t *testing.T) {
 		time.Sleep(100 * time.Millisecond) // Make sure the load is slow
 		return fmt.Sprintf("value for %s", key), nil
 	}
-	group := NewFactory("TestConcurrentLoads", loader).Cache()
+	group := cache.NewFactory("TestConcurrentLoads", loader).Cache()
 
 	getAndWait(group, 2, t)
 
@@ -132,7 +133,7 @@ func TestConcurrentLoads(t *testing.T) {
 	}
 }
 
-func getAndWait(group *Group[string, string], concurrentRoutines int, t *testing.T) {
+func getAndWait(group *cache.Group[string, string], concurrentRoutines int, t *testing.T) {
 	start := make(chan string) // Coordination of start
 	responseChannel := make(chan string, concurrentRoutines)
 	defer close(responseChannel)
@@ -168,7 +169,7 @@ func TestDuplicateSuppression(t *testing.T) {
 		time.Sleep(100 * time.Millisecond) // Make sure the load is slow
 		return fmt.Sprintf("value for %s", key), nil
 	}
-	group := NewFactory("TestDuplicateSuppression", loader).WithLoadDuplicateSuppression().Cache()
+	group := cache.NewFactory("TestDuplicateSuppression", loader).WithLoadDuplicateSuppression().Cache()
 
 	getAndWait(group, 3, t)
 
@@ -186,8 +187,8 @@ func TestFlush(t *testing.T) {
 		return counter, nil
 	}
 
-	group1 := NewFactory("group1-flush", loader).Cache()
-	group2 := NewFactory("group2-flush", loader).Cache()
+	group1 := cache.NewFactory("group1-flush", loader).Cache()
+	group2 := cache.NewFactory("group2-flush", loader).Cache()
 
 	v, _ := group1.Get("key")
 	if v != 1 {
@@ -222,7 +223,7 @@ func TestPanicLoad(t *testing.T) {
 		return "nopanic", nil
 	}
 
-	group := NewFactory("TestPanicLoad", loader).WithLoadDuplicateSuppression().Cache()
+	group := cache.NewFactory("TestPanicLoad", loader).WithLoadDuplicateSuppression().Cache()
 
 	panicHandler(group)
 
@@ -232,7 +233,7 @@ func TestPanicLoad(t *testing.T) {
 	}
 }
 
-func panicHandler(group *Group[int64, string]) {
+func panicHandler(group *cache.Group[int64, string]) {
 	defer func() {
 		// do not let the panic below leak to the test
 		_ = recover()
@@ -247,7 +248,7 @@ func TestWithReloadOnDelete(t *testing.T) {
 		return counter, nil
 	}
 
-	group := NewFactory("WithReloadOnDelete ", loader).WithReloadOnDelete().Cache()
+	group := cache.NewFactory("WithReloadOnDelete ", loader).WithReloadOnDelete().Cache()
 	v, _ := group.Get("key")
 	assert.Equal(t, 1, v, "incorrect value for 'key'")
 	assert.Equal(t, 1, counter, "loader called once")
@@ -269,7 +270,7 @@ func TestWithReloadNonBlocking(t *testing.T) {
 		counter++
 		return counter, nil
 	}
-	group := NewFactory("TestWithReloadNonBlocking ", loader).WithLoadDuplicateSuppression().WithReloadOnDelete().Cache()
+	group := cache.NewFactory("TestWithReloadNonBlocking ", loader).WithLoadDuplicateSuppression().WithReloadOnDelete().Cache()
 	block <- true // Do not block first load
 	v, _ := group.Get("key")
 	assert.Equal(t, 1, v, "incorrect value for 'key'")

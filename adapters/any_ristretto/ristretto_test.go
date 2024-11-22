@@ -20,6 +20,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
+	"github.com/stretchr/testify/assert"
 	"sustainyfacts.dev/anycache/cache"
 )
 
@@ -254,4 +256,29 @@ func panicHandler(group *cache.Group[int64, string]) {
 		_ = recover()
 	}()
 	group.Get(1)
+}
+
+func Test_UUID(t *testing.T) {
+	const nbElements = 100
+	cacheLoads := 0
+	group := cache.NewFactory("TestUUID",
+		func(key uuid.UUID) (string, error) {
+			cacheLoads++
+			return key.String(), nil
+		}).Cache()
+
+	var ids []uuid.UUID
+	for i := 0; i < nbElements; i++ {
+		id, _ := uuid.NewRandom()
+		ids = append(ids, id)
+	}
+	for i := 0; i < 2; i++ { // Do it twice to make sure to hit the cache
+		for _, id := range ids {
+			fromCache, err := group.Get(id)
+			assert.NoError(t, err)
+			assert.Equal(t, id.String(), fromCache)
+		}
+		waitForRistretto() // Wait until it stores the stuff
+	}
+	assert.Equal(t, nbElements, cacheLoads, "second lookup should be from cache")
 }

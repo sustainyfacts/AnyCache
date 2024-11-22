@@ -2,6 +2,7 @@ go 1.21
 
 use (
 	./cache
+	./tests
 	./adapters/any_ristretto
 	./adapters/any_redis
 	./adapters/any_nats
