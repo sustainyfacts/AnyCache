@@ -20,13 +20,22 @@ import (
 )
 
 var (
-	defaultStore Store = NewHashMapStore()    // Default underlying cache implementation
-	allGroups          = map[string][]Store{} // To avoid instanciating the same group twice for the same store
+	// Default underlying cache implementation
+	defaultStore Store = NewHashMapStore()
+	// Default message broker (none by default)
+	defaultMessageBroker MessageBroker
+	// To avoid instanciating the same group twice for the same store
+	allGroups = map[string][]Store{}
 )
 
-// Sets the default store for all the next groups to be created
+// SetDefaultStore sets the default Store. Only applies to the groups created after this call.
 func SetDefaultStore(store Store) {
 	defaultStore = store
+}
+
+// SetDefaultMessageBroker set the default MessageBroker. Only applies to the groups created after this call.
+func SetDefaultMessageBroker(messageBroker MessageBroker) {
+	defaultMessageBroker = messageBroker
 }
 
 type Group[K comparable, V any] struct {

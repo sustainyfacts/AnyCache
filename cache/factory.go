@@ -68,8 +68,13 @@ func (f Factory[K, V]) Cache() *Group[K, V] {
 	}
 	allGroups[f.Name] = append(allGroups[f.Name], store)
 
+	messageBroker := f.MessageBroker
+	if messageBroker == nil {
+		messageBroker = defaultMessageBroker
+	}
+
 	group := Group[K, V]{store: store, name: f.Name,
-		load: f.CacheLoader, messageBroker: f.MessageBroker,
+		load: f.CacheLoader, messageBroker: messageBroker,
 		debug: f.debug, reloadOnDelete: f.reloadOnDelete, store2: f.SecondLevelStore}
 	if f.LoadDuplicateSuppression {
 		group.loadGroup = &singleflight.Group[K, V]{}
