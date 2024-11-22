@@ -46,5 +46,5 @@ sustainyfacts.dev/anycache/adapters/any_redis v0.1.1 h1:n3lgIMG1jGR772Ddvh1c8vTq
 sustainyfacts.dev/anycache/adapters/any_redis v0.1.1/go.mod h1:/frjTPo2cfcX3UPpDw8EyhhW1HrXyhs4X7Ps0GKPRIk=
 sustainyfacts.dev/anycache/adapters/any_ristretto v0.1.1 h1:+CB+5FNGkJ44YwncQZdJIURkNKrEIWTDNOt5o1HdmfU=
 sustainyfacts.dev/anycache/adapters/any_ristretto v0.1.1/go.mod h1:inHoZtNfBIhs9YzXaRMUrkVjskyT9eIT1dgq9Gj0t6k=
-sustainyfacts.dev/anycache/cache v0.5.2 h1:2m71LcITiquVgWDP1rnQgMKFq0eyIqFzl32FBmHKpXE=
-sustainyfacts.dev/anycache/cache v0.5.2/go.mod h1:fjPm1ASDuBsiML5AUNuXulopfEV/uSBCUfqJDSJkLhw=
+sustainyfacts.dev/anycache/cache v0.6.0 h1:/1To4iwmqs/yBAUJ+r2ncl8kKiAJKnBgvVJkCbqWzfs=
+sustainyfacts.dev/anycache/cache v0.6.0/go.mod h1:IMjTG91B30hCVUJ4GBXjIPNckcI3DkSK/Zforqdshpg=

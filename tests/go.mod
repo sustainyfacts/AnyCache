@@ -7,7 +7,7 @@ require (
 	github.com/stretchr/testify v1.9.0
 	sustainyfacts.dev/anycache/adapters/any_redis v0.1.1
 	sustainyfacts.dev/anycache/adapters/any_ristretto v0.1.1
-	sustainyfacts.dev/anycache/cache v0.5.2
+	sustainyfacts.dev/anycache/cache v0.6.0
 )
 
 require (
