@@ -113,6 +113,7 @@ func (g *Group[K, V]) Del(key K) {
 	g.delNoFlush(key, true)
 	if g.messageBroker != nil {
 		msg := cacheMsg[K]{Group: g.name, Key: key}
+		g.log("send flush key %v", key)
 		go g.messageBroker.Send(msg.bytes()) // async call
 	}
 }
